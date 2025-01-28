@@ -1,5 +1,5 @@
 # Stubo's Always Show Needs
-
+![A screenshow showing the needs](needs.png)
 A BepInEx plugin for Obenseuer that modifies the visibility behavior of status/needs indicators.
 
 ## Description
