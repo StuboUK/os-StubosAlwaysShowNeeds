@@ -1,62 +1,68 @@
 ﻿using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Logging;
-
 using HarmonyLib;
-
-//Un-comment this to use the patch example
 using StubosShowNeeds.Patches;
+using System.Collections.Generic;
 
 namespace StubosShowNeeds;
-
-/*
-  Here are some basic resources on code style and naming conventions to help
-  you in your first CSharp plugin!
-
-  https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions
-  https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names
-  https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/names-of-namespaces
-*/
 
 [BepInPlugin(LCMPluginInfo.PLUGIN_GUID, LCMPluginInfo.PLUGIN_NAME, LCMPluginInfo.PLUGIN_VERSION)]
 public class Plugin : BaseUnityPlugin
 {
-  internal static ManualLogSource Log = null!;
+    internal static ManualLogSource Log = null!;
+    internal static ConfigEntry<float> DefaultThreshold;
+    internal static Dictionary<string, ConfigEntry<float>> StatThresholds;
+    internal static Dictionary<string, ConfigEntry<bool>> DisabledStats;
 
+    private void Awake()
+    {
+        Log = Logger;
+        InitializeConfig();
 
-  private void Awake()
-  {
-    /*
-      BepinEx makes you a ManualLogSource for free called "Logger"
-      and I created a static value above to hold on to it so other
-      parts of your plugin's code can find it by using Plugin.Log
+        Log.LogInfo($"Plugin {LCMPluginInfo.PLUGIN_NAME} version {LCMPluginInfo.PLUGIN_VERSION} is loaded!");
 
-      We assign it here
-    */
-    Log = Logger;
+        Harmony myHarmony = new(LCMPluginInfo.PLUGIN_GUID);
+        myHarmony.PatchAll(typeof(ShowUI));
+    }
 
-    
+    private void InitializeConfig()
+    {
+        DefaultThreshold = Config.Bind("General",
+                                     "DefaultThreshold",
+                                     1f,
+                                     "Default threshold value for all stats (percentage)");
 
-    // Log our awake here so we can see it in LogOutput.txt file
-    Log.LogInfo($"Plugin {LCMPluginInfo.PLUGIN_NAME} version {LCMPluginInfo.PLUGIN_VERSION} is loaded!");
+        StatThresholds = new Dictionary<string, ConfigEntry<float>>();
+        DisabledStats = new Dictionary<string, ConfigEntry<bool>>();
 
-    
-    //Here is an example of how you'd do a patch
+        var allStats = new[]
+        {
+            "Health",
+            "Hygiene",
+            "Bleeding",
+            "Hunger",
+            "Thirst",
+            "Sleep",
+            "WC",
+            "Alcohol",
+            "Mushrooms",
+            "Smokes",
+            "Depression",
+            "Ducks"
+        };
 
-    //This creates a harmony instance with your ID. It can be used
-    //To possibly un-patch every method you patch or just to inspect
-    //What you patch by any other code that can see harmony and
-    //request the patcher by name. This is a good thing so follow
-    //this standard to allow other mods to react to your patches
-    //for compatibility and other reasons
-    Harmony myHarmony = new(LCMPluginInfo.PLUGIN_GUID);
+        foreach (var stat in allStats)
+        {
+            StatThresholds[stat] = Config.Bind("StatThresholds",
+                                             stat,
+                                             DefaultThreshold.Value,
+                                             $"Threshold for {stat} stat (percentage)");
 
-    //Note: you'll need to also un-comment the example patches in
-    //ClassName.cs to see this actually work
-    //Also Note: This will patch all [HarmonyPatch] tagged
-    //Items in the class PowerSourcePatches. Its why I do things this
-    //Way. You can choose which of you groups of patches to apply
-    //Based on eg, settings or something.
-    myHarmony.PatchAll(typeof(ShowUI));
-  }
-
+            DisabledStats[stat] = Config.Bind("DisabledStats",
+                                            stat,
+                                            false,
+                                            $"If true, modifications for {stat} will be disabled");
+        }
+    }
 }

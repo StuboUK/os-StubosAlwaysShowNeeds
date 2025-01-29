@@ -5,34 +5,33 @@ using System.Collections.Generic;
 namespace StubosShowNeeds.Patches;
 public class ShowUI
 {
-    //The player may not have these addictions all the time, so we won't show them 24/7
-    private static readonly HashSet<string> conditionalNeeds = new()
-    {
-        "Alcohol",
-        "Ducks",
-        "Mushrooms",
-        "Smokes"
-    };
-
     [HarmonyPatch(typeof(PlayerStatsUI), nameof(PlayerStatsUI.UpdateColor))]
     [HarmonyPrefix]
     static void Prefix(PlayerStatUI stat, float value, ref bool invisible, ref bool greenToRed)
     {
-        // Special case for Bleeding due to its default value of 50 for some reason
-        if (stat.name == "Bleeding")
+        // Skip if stat is disabled in config
+        if (Plugin.DisabledStats.TryGetValue(stat.name, out var disabled) && disabled.Value)
         {
-            invisible = value == 50f;
             return;
         }
 
-        // For other conditional needs
-        if (conditionalNeeds.Contains(stat.name))
+        // Get threshold for this stat
+        if (Plugin.StatThresholds.TryGetValue(stat.name, out var threshold))
         {
-            invisible = value <= 1f;
-            return;
-        }
+            // Special case for Bleeding due to its default value of 50
+            if (stat.name == "Bleeding")
+            {
+                invisible = value == 50f;
+                return;
+            }
 
-        // For non-conditional needs, always show
-        invisible = false;
+            // For all other stats
+            invisible = value <= threshold.Value;
+        }
+        else
+        {
+            // Fallback to default threshold if stat isn't in config
+            invisible = value <= Plugin.DefaultThreshold.Value;
+        }
     }
-}
+}//;
